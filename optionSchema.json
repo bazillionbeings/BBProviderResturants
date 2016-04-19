@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "id": "/patchServicePreference",
+  "type": "object",
+  "required": [
+    "latitude",
+    "Longitude"
+  ],
+  "properties": {
+    "latitude": {
+      "type": "number",
+      "minimum": 0
+    },
+    "Longitude": {
+      "type": "number",
+      "minimum": 0
+    }
+  }
+}
