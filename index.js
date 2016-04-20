@@ -38,7 +38,7 @@ class ResturantProvider {
                 for (let groupItem of groupItems) {
                     let venue = groupItem.venue;
                     returnResult.push({
-                        link: venue.url,
+                        link: `https://foursquare.com/v/${venue.id}`,
                         media: 'venue',
                         country: null,
                         type: null,
@@ -53,6 +53,6 @@ class ResturantProvider {
     }   
 }
 
-new ResturantProvider().execute([{name: 'Jack the Horse Tavern'}], {ll: '40.7,-74'}).catch(console.error);
+// new ResturantProvider().execute([{name: 'Jack the Horse Tavern'}], {ll: '40.7,-74'}).catch(console.error);
 
 module.exports = ResturantProvider;
