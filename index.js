@@ -20,7 +20,7 @@ class ResturantProvider {
     }
 
     static get ontologyAttributes() {
-        return ['name'];
+        return [];
     }
     
     static get optionSchema() {
