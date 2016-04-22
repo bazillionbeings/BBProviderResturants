@@ -8,12 +8,10 @@
   ],
   "properties": {
     "latitude": {
-      "type": "number",
-      "minimum": 0
+      "type": "number"
     },
     "Longitude": {
-      "type": "number",
-      "minimum": 0
+      "type": "number"
     }
   }
 }
