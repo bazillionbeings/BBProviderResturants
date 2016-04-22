@@ -30,7 +30,7 @@ class ResturantProvider {
     execute(input, options) {
         return new Promise((resolve, reject) => {            
             this._foursquare.venues.explore({
-                ll: `${options.lat},${options.long}`,
+                ll: `${options.latitude},${options.Longitude}`,
                 section: 'food'
             }, (statusCode, result) => {
                 let returnResult = []; 
