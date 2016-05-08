@@ -52,6 +52,7 @@ class ResturantProvider {
                 name: venue.name,
                 type: null,
                 country: null,
+                source: 'foursquare',
                 attributes: {
                     _locationLat: venue.location.lat,
                     _locationLong: venue.location.lng    
