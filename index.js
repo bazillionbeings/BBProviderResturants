@@ -44,25 +44,33 @@ class ResturantProvider {
         return optionSchema;
     }
 
-    _constructReturnVenue(venue) {
+    _constructReturnVenue(venue, country) {
+        let categories = [];
+        if (venue.categories) {
+            categories = venue.categories.map(category => category.name);
+        }
         return new Promise((resolve, reject) => {
             let formattedVenue = {
-                link: `https://foursquare.com/v/${venue.id}`,
-                media: 'venue',
-                name: venue.name,
-                type: null,
-                country: null,
+                class: 'FoodInterest',
+                subclass: 'Restaurants',
+                url: `https://foursquare.com/v/${venue.id}`,
+                weburl: `https://foursquare.com/v/${venue.id}`,
                 source: 'foursquare',
+                type: 'venue',
+                name: venue.name,
+                tags: [],
                 attributes: {
                     _locationLat: venue.location.lat,
-                    _locationLong: venue.location.lng    
-                }                
+                    _locationLong: venue.location.lng,
+                    type: categories,
+                    country
+                }
             };
-            this._foursquare.venues.photos(venue.id, {}, (statusCode, result) => {                
+            this._foursquare.venues.photos(venue.id, {}, (statusCode, result) => {
                 for (let item of result.response.photos.groups) {
                     if (item.name === 'Venue photos') {
                         if (item.items.length > 0) {
-                            formattedVenue.backgroundImageUrl = `${item.items[0].prefix}original${item.items[0].suffix}`; 
+                            formattedVenue.backgroundImageUrl = `${item.items[0].prefix}original${item.items[0].suffix}`;
                         }
                         break;
                     }
@@ -75,58 +83,55 @@ class ResturantProvider {
     execute(input, options) {
         return new Promise((resolve, reject) => {
             let resultPromises = [];
+            let googleApiPromises = [];
             for (let attrs of input) {
+                let country;
                 let requestOptions = {
                     ll: `${options.latitude},${options.Longitude}`,
                     section: 'food'
-                };
-                let countryPromise;
-                for (let attrKey in attrs) {
-                    switch (attrKey) {
-                        case 'type':
-                            //"query" has been used instead of "categorie" query option since API has bugs
-                            attrs.type = attrs.type.trim().toLowerCase();
-                            requestOptions.query = attrs.type;
+                };                
+                let googleApiPromise = rp.get({
+                    url: `https://maps.googleapis.com/maps/api/geocode/json?latlng=${requestOptions.ll}&key=${config.googleMapsGeocodingAPIKey}`,
+                    json: true
+                }).then(body => {
+                    let address = body.results[0].address_components;
+                    //more likely to be at the ending
+                    for (let i = address.length - 1; i >= 0; i--) {
+                        if (address[i].types.findIndex(element => element === 'country') !== -1) {
+                            country = address[i].long_name;
                             break;
-                        case 'country':
-                            countryPromise = new Promise((resolve, reject) => {
-                                rp.get({
-                                    url: `https://maps.googleapis.com/maps/api/geocode/json?latlng=${requestOptions.ll}&key=${config.googleMapsGeocodingAPIKey}`,
-                                    json: true
-                                }).then(body => {
-                                    let address = body.results[0].address_components;
-                                    //more likely to be at the ending
-                                    for (let i = address.length - 1; i >= 0; i--) {
-                                        if (address[i].types.findIndex(element => element === 'country') !== -1) {
-                                            if (address[i].long_name !== attrs.country) {
-                                                delete requestOptions.ll;
-                                                requestOptions.near = attrs.country;
-                                                resolve();
-                                            } else {
-                                                resolve();
-                                            }
-                                            break;
-                                        }
-                                    }
-                                }).catch(reject);
-                            });
-                            break;
+                        }
                     }
-                }
-                let resultPromise = new Promise((resolve, reject) => {
-                    Promise.all([countryPromise]).then(result => {
+
+                    for (let attrKey in attrs) {
+                        switch (attrKey) {
+                            case 'type':
+                                //"query" has been used instead of "categorie" query option since API has bugs
+                                attrs.type = attrs.type.trim().toLowerCase();
+                                requestOptions.query = attrs.type;
+                                break;
+                            case 'country':
+                                if (country !== attrs.country) {
+                                    delete requestOptions.ll;
+                                    requestOptions.near = attrs.country;
+                                    country = attrs.country;                                    
+                                }
+                                break;
+                        }
+                    }
+                    let resultPromise = new Promise((resolve, reject) => {
                         this._foursquare.venues.explore(requestOptions, (statusCode, result) => {
                             let returnResult = [];
                             let venues = result.response.groups[0].items.map(groupItem => groupItem.venue);
-                            let venuePromises = [];
+                            let venuePromises = [];                            
                             if (attrs.type) {
                                 for (let venue of venues) {
                                     if (venue.categories) {
                                         for (let category of venue.categories) {
-                                            if (category.name.toLowerCase() === attrs.type) {
-                                                venuePromises.push(this._constructReturnVenue(venue).then(venue => {
-                                                    returnResult.push(venue);    
-                                                }).catch(reject));                                                
+                                            if (category.name.toLowerCase() === attrs.type) {                                                
+                                                venuePromises.push(this._constructReturnVenue(venue, country).then(venue => {
+                                                    returnResult.push(venue);
+                                                }).catch(reject));
                                                 break;
                                             }
                                         }
@@ -134,24 +139,27 @@ class ResturantProvider {
                                 }
                             } else {
                                 for (let venue of venues) {
-                                    venuePromises.push(this._constructReturnVenue(venue).then(venue => {
+                                    venuePromises.push(this._constructReturnVenue(venue, country).then(venue => {
                                         returnResult.push(venue);
                                     }).catch(reject));
                                 }
                             }
                             Promise.all(venuePromises).then(() => resolve(returnResult), reject).catch(reject);
                         });
-                    }, reject).catch(reject);
+                    });
+                    resultPromises.push(resultPromise);
                 });
-                resultPromises.push(resultPromise);
+                googleApiPromises.push(googleApiPromise);                
             }
-            Promise.all(resultPromises).then(result => {
-                resolve(result.reduce((prev, curr) => prev.concat(curr)));
+            Promise.all(googleApiPromises).then(() => {
+                Promise.all(resultPromises).then(result => {
+                    resolve(result.reduce((prev, curr) => prev.concat(curr)));
+                }, reject).catch(reject);    
             }, reject).catch(reject);
         });
     }
 }
 
-//new ResturantProvider().execute([{ country: 'Germany' }], { latitude: 40.7, Longitude: -74 }).then(console.log).catch(console.trace);
+new ResturantProvider().execute([{ country: 'Germany' }], { latitude: 40.7, Longitude: -74 }).then(result => console.dir(result, {depth: null})).catch(console.trace);
 
 module.exports = ResturantProvider;
