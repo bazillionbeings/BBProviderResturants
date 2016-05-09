@@ -160,6 +160,6 @@ class ResturantProvider {
     }
 }
 
-new ResturantProvider().execute([{ country: 'Germany' }], { latitude: 40.7, Longitude: -74 }).then(result => console.dir(result, {depth: null})).catch(console.trace);
+// new ResturantProvider().execute([{ country: 'Germany' }], { latitude: 40.7, Longitude: -74 }).then(result => console.dir(result, {depth: null})).catch(console.trace);
 
 module.exports = ResturantProvider;
